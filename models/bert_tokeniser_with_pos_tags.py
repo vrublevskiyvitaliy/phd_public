@@ -160,7 +160,7 @@ class TokeniserWithPosTags:
 
 def preprocess_dataset_with_pos_tags(tokenizer, truncation, max_length, padding, examples):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
-  pos_tokeniser = TokeniserWithPosTags(tokeniser=tokenizer)
+  pos_tokeniser = TokeniserWithPosTags(tokeniser=tokenizer, truncation=truncation, max_length=max_length, padding=padding)
   pos_tag_tokeniser_data = pos_tokeniser.tokenise_two_sentances(examples["sentence1"], examples["sentence2"])
   assert(basic_tokenizer_data['input_ids'] == pos_tag_tokeniser_data['input_ids'])
   basic_tokenizer_data['pos_tag_ids'] = pos_tag_tokeniser_data['pos_tag_ids']
