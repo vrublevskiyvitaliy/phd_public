@@ -158,7 +158,7 @@ class TokeniserWithPosTags:
         'idx_to_value': pos_tag_idx_to_value,
     }
 
-def preprocess_dataset_with_pos_tags(tokenizer, truncation, max_length, padding, examples):
+def preprocess_dataset_with_pos_tags(examples, tokenizer, truncation, max_length, padding):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
   pos_tokeniser = TokeniserWithPosTags(tokeniser=tokenizer, truncation=truncation, max_length=max_length, padding=padding)
   pos_tag_tokeniser_data = pos_tokeniser.tokenise_two_sentances(examples["sentence1"], examples["sentence2"])
