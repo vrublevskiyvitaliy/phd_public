@@ -200,12 +200,6 @@ class BertModelClassic(BertModel):
         )
         return extend_out
 
-# from transformers.models.bert import BertPreTrainedModel
-# from typing import List, Optional, Tuple, Union
-# from transformers.modeling_outputs import SequenceClassifierOutput
-
-# from torch.nn import CrossEntropyLoss
-
 class BertForSequenceClassificationClassic(BertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
