@@ -1,7 +1,7 @@
 import evaluate
 from tqdm.auto import tqdm
 
-def train_eval(model, optimizer, lr_scheduler,  train_dataloader, eval_dataloader, num_train_epochs, num_training_steps):
+def train_eval(model, optimizer, lr_scheduler,  train_dataloader, eval_dataloader, num_train_epochs, num_training_steps, device):
   progress_bar = tqdm(range(num_training_steps))
 
   for epoch in range(num_train_epochs):
