@@ -1,4 +1,5 @@
 import evaluate
+import torch
 from tqdm.auto import tqdm
 
 def train_eval(model, optimizer, lr_scheduler,  train_dataloader, eval_dataloader, num_train_epochs, num_training_steps, device):
