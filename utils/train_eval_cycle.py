@@ -69,8 +69,8 @@ def train_eval_test(model, optimizer, lr_scheduler,  train_dataloader, eval_data
 
       acc = ev_accuracy_metric.compute()
       f1 = ev_f1_metric.compute()
-      print(f"Eval accuracy {acc['accuracy']:.2f}")
-      print(f"Eval F1 {f1['f1']:.2f}")
+      print(f"Eval accuracy {acc['accuracy']:.4f}")
+      print(f"Eval F1 {f1['f1']:.4f}")
 
       test_accuracy_metric = evaluate.load("accuracy")
       test_f1_metric = evaluate.load("f1")
@@ -87,5 +87,5 @@ def train_eval_test(model, optimizer, lr_scheduler,  train_dataloader, eval_data
 
       acc = test_accuracy_metric.compute()
       f1 = test_f1_metric.compute()
-      print(f"Test accuracy {acc['accuracy']:.2f}")
-      print(f"Test F1 {f1['f1']:.2f}")
+      print(f"Test accuracy {acc['accuracy']:.4f}")
+      print(f"Test F1 {f1['f1']:.4f}")
