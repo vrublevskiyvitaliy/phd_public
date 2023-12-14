@@ -153,7 +153,7 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
       if pos_tag in pos_tag_to_id_map:
         return pos_tag_to_id_map[pos_tag]
       return pos_tag_to_id_map['UNKNOWN']
-    return [{'boundaries':token['token_boundaries'], 'pos_tag_id': get_id(token['token_pos_tag'])} for token in all_tokens]
+    return [{'boundaries':token['token_boundaries'], self.feature_key: get_id(token['token_pos_tag'])} for token in all_tokens]
 
   
 class FinalTokeniser:
