@@ -133,7 +133,7 @@ class FinalTokeniser:
   def __init__(self, tokeniser):
     self._tokeniser = tokeniser
 
-  def tokenise_everything(self, s1, s2, tokeniser_list, padding, truncation, max_length):
+  def apply_tokenisers(self, s1, s2, tokeniser_list, padding, truncation, max_length):
     # Get base data first: input ids, token_ids, attention_mask
     encoded_base = self._tokeniser.batch_encode_plus([s1, s2], return_offsets_mapping=True, add_special_tokens=False)
     s1_input_ids = encoded_base['input_ids'][0]
@@ -173,9 +173,18 @@ class FinalTokeniser:
     
     return data
 
-  def tokenise_pos(self, s1, s2, padding, truncation, max_length):
+  def tokenise_everything(self, s1, s2, padding, truncation, max_length):
     pos_tokeniser = PosTagEnrichedTokeniser(self._tokeniser)
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
     
-    return self.tokenise_everything(s1, s2, [pos_tokeniser, pos_tag_id_tokeniser], padding, truncation, max_length)
+    return self.apply_tokenisers(s1, s2, [pos_tokeniser, pos_tag_id_tokeniser], padding, truncation, max_length)
 
+
+def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
+  basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
+  final_tokeniser = FinalTokeniser(tokeniser=tokenizer)
+  enriched_data = final_tokeniser.tokenise_everything(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
+  assert(basic_tokenizer_data['input_ids'] == enriched_data['input_ids'])
+  for feature, value in enriched_data.items():
+    basic_tokenizer_data[feature] = value
+  return basic_tokenizer_data
