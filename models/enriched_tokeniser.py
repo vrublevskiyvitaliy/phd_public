@@ -1,7 +1,34 @@
 import nltk
+import spacy
+# Space module import
+import en_core_web_md
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
+
+def get_spacy_module():
+  return en_core_web_md.load()
+
+nlp = get_spacy_module()
+
+def get_sentence_tokens(s):
+  doc = nlp(s)
+  sentence_tokens = []
+
+  for token in doc:
+    data = {
+      "token_id": token.i,
+      "token_text": token.text,
+      "token_connection_ids": token.head.i,
+      "token_left_edge": token.idx,
+      "token_right_edge": token.idx + len(token.text),
+      "token_boundaries": (token.idx, token.idx + len(token.text)),
+      "token_pos_tag": token.tag_,
+    }
+
+    sentence_tokens.append(data)
+  return sentence_tokens
+
 
 class BaseEnrichedTokeniser:
   def __init__(self, tokeniser):
