@@ -93,7 +93,7 @@ class PosTagEnrichedTokeniser(BaseEnrichedTokeniser):
 class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
-    self.feature_key = 'pos_tag_id'
+    self.feature_key = 'pos_tag_ids'
 
   @staticmethod
   def load_pos_tag_value_to_idx():
