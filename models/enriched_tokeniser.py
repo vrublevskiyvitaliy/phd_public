@@ -201,10 +201,9 @@ class FinalTokeniser:
     return data
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
-    pos_tokeniser = PosTagEnrichedTokeniser(self._tokeniser)
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
     
-    return self.apply_tokenisers(s1, s2, [pos_tokeniser, pos_tag_id_tokeniser], padding, truncation, max_length)
+    return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser], padding, truncation, max_length)
 
 
 def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
