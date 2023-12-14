@@ -76,6 +76,9 @@ class BaseEnrichedTokeniser:
         )
       return split_tokens
 
+  def post_processing(self, v):
+    return v
+
 class PosTagEnrichedTokeniser(BaseEnrichedTokeniser):
 
   def __init__(self, tokeniser):
@@ -94,6 +97,7 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
     self.feature_key = 'pos_tag_ids'
+    self.pos_tag_to_id_map = PosTagIdEnrichedTokeniser.load_pos_tag_value_to_idx()
 
   @staticmethod
   def load_pos_tag_value_to_idx():
@@ -148,12 +152,26 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
     Return list of [('boundaries':(int, int), 'feature':string)]
     """
     all_tokens = get_sentence_tokens(s)
-    pos_tag_to_id_map = PosTagIdEnrichedTokeniser.load_pos_tag_value_to_idx()
     def get_id(pos_tag):
-      if pos_tag in pos_tag_to_id_map:
-        return pos_tag_to_id_map[pos_tag]
-      return pos_tag_to_id_map['UNKNOWN']
+      if pos_tag in self.pos_tag_to_id_map:
+        return self.pos_tag_to_id_map[pos_tag]
+      return self.pos_tag_to_id_map['UNKNOWN']
     return [{'boundaries':token['token_boundaries'], self.feature_key: get_id(token['token_pos_tag'])} for token in all_tokens]
+    
+  def post_processing(self, s1_s2_feature):
+    token_mapping = self.get_special_token_mapping()
+    def replace_token_id(token_id, m):
+      if token_id in m.keys():
+        return m[token_id]
+      return token_id
+    _s1_s2_feature = [replace_token_id(x, token_mapping) for x in s1_s2_feature]
+    return _s1_s2_feature
+
+  def get_special_token_mapping(self):
+    return {
+      self._tokeniser.cls_token_id: self.pos_tag_to_id_map['NA'],
+      self._tokeniser.sep_token_id: self.pos_tag_to_id_map['NA'],
+    }
 
   
 class FinalTokeniser:
@@ -196,6 +214,8 @@ class FinalTokeniser:
 
       s1_s2_feature = _prepare_for_model(self._tokeniser, s1_feature, s2_feature)
 
+      s1_s2_feature = tokeniser.post_processing(s1_s2_feature)
+    
       data[tokeniser.feature_key] = s1_s2_feature
     
     return data
@@ -204,7 +224,6 @@ class FinalTokeniser:
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
     
     return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser], padding, truncation, max_length)
-
 
 def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
