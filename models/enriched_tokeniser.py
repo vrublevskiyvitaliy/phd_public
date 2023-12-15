@@ -182,24 +182,48 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
     }
 
 
-class AttentionEnhencerDummyEnrichedTokeniserV1(BaseEnrichedTokeniser):
+class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
     self.feature_key = 'attention_enhencer_dummy'
     self.type = TokeniserType.TWO_SENTENCES
 
   def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
-    s1_t_tokens = self.get_transformer_sentence_tokens(s1)
-    s2_t_tokens = self.get_transformer_sentence_tokens(s2)
-    s1_feature = self.get_feature(s1)
-    s2_feature = self.get_feature(s2)
-
     # Dummy matrix will have 1 for all non padding elements.
 
     dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
 
     first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
     source = torch.full((first_padding_0,first_padding_0), 1.)
+    pad_distance =  max_length - first_padding_0 
+  
+    result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
+    return result
+
+  def get_feature(self, s):
+    all_tokens = get_sentence_tokens(s)
+    return [
+      {
+        'boundaries':token['token_boundaries'], 
+        'token_connection_ids': token['token_connection_ids'],
+        'token_id': token['token_id']
+      } for token in all_tokens
+    ]
+
+
+class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
+  def __init__(self, tokeniser):
+    super().__init__(tokeniser)
+    self.feature_key = 'attention_enhencer_rand'
+    self.type = TokeniserType.TWO_SENTENCES
+
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+    # Dummy matrix will have 1 for all non padding elements.
+
+    dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
+
+    first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
+    source = torch.rand((first_padding_0,first_padding_0))
     pad_distance =  max_length - first_padding_0 
   
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
@@ -271,8 +295,17 @@ class FinalTokeniser:
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
-    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniserV1(self._tokeniser)
-    return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser, attention_tokeniser], padding, truncation, max_length)
+    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
+    attention_tokeniser_rand = AttentionEnhencerRandEnrichedTokenise(self._tokeniser)
+    
+    return self.apply_tokenisers(
+      s1, 
+      s2, 
+      [pos_tag_id_tokeniser, attention_tokeniser, attention_tokeniser_rand], 
+      padding, 
+      truncation, 
+      max_length
+    )
 
 def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
