@@ -199,13 +199,10 @@ class AttentionEnhencerDummyEnrichedTokeniserV1(BaseEnrichedTokeniser):
     dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
 
     first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
-   
     source = torch.full((first_padding_0,first_padding_0), 1.)
     pad_distance =  max_length - first_padding_0 
   
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
-    number_of_attention_heads = 12
-    result = result[None, :, :].expand([number_of_attention_heads, max_length, max_length])
     return result
 
   def get_feature(self, s):
