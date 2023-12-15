@@ -182,7 +182,7 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
     }
 
 
-class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
+class AttentionEnhencerDummyEnrichedTokeniserV1(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
     self.feature_key = 'attention_enhencer_dummy'
@@ -204,7 +204,8 @@ class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
     pad_distance =  max_length - first_padding_0 
   
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
-  
+    number_of_attention_heads = 12
+    result = result[None, :, :].expand([number_of_attention_heads, L, L])
     return result
 
   def get_feature(self, s):
@@ -273,7 +274,7 @@ class FinalTokeniser:
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
-    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
+    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniserV1(self._tokeniser)
     return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser, attention_tokeniser], padding, truncation, max_length)
 
 def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
