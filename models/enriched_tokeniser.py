@@ -284,7 +284,6 @@ class FinalTokeniser:
         s1_s2_feature = _prepare_for_model(self._tokeniser, s1_feature, s2_feature,  padding, truncation, max_length)
       else:
         s1_s2_feature = tokeniser.enrich_tokens(s1, s2,  padding, truncation, max_length)
-        pass
 
       s1_s2_feature = tokeniser.post_processing(s1_s2_feature)
     
