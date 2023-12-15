@@ -5,12 +5,12 @@ assert(transformers.__version__ == '4.28.0')
 
 from torch import nn
 from transformers.models.deberta.modeling_deberta import (
-    DebertaLayerNorm, 
-    DebertaPreTrainedModel, 
-    StableDropout, 
-    DebertaEncoder, 
+    DebertaLayerNorm,
+    DebertaPreTrainedModel,
+    StableDropout,
+    DebertaEncoder,
     ContextPooler,
-    DisentangledSelfAttention, 
+    DisentangledSelfAttention,
     DebertaModel,
     DebertaForSequenceClassification,
     DebertaIntermediate,
@@ -25,45 +25,6 @@ from transformers.modeling_outputs import BaseModelOutput, SequenceClassifierOut
 from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss, MSELoss
 
 from collections.abc import Sequence
-
-# # coding=utf-8
-# # Copyright 2020 Microsoft and the Hugging Face Inc. team.
-# #
-# # Licensed under the Apache License, Version 2.0 (the "License");
-# # you may not use this file except in compliance with the License.
-# # You may obtain a copy of the License at
-# #
-# #     http://www.apache.org/licenses/LICENSE-2.0
-# #
-# # Unless required by applicable law or agreed to in writing, software
-# # distributed under the License is distributed on an "AS IS" BASIS,
-# # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# # See the License for the specific language governing permissions and
-# # limitations under the License.
-# """ PyTorch DeBERTa model."""
-
-# from collections.abc import Sequence
-# from typing import Optional, Tuple, Union
-
-# import torch
-# import torch.utils.checkpoint
-# from torch import nn
-# from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
-# from ...activations import ACT2FN
-# from ...modeling_outputs import (
-#     BaseModelOutput,
-#     MaskedLMOutput,
-#     QuestionAnsweringModelOutput,
-#     SequenceClassifierOutput,
-#     TokenClassifierOutput,
-# )
-# from ...modeling_utils import PreTrainedModel
-# from ...pytorch_utils import softmax_backward_data
-# from ...utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-# from .configuration_deberta import DebertaConfig
-
-
 
 class DisentangledSelfAttentionV2(DisentangledSelfAttention):
     def forward(
@@ -139,17 +100,23 @@ class DisentangledSelfAttentionV2(DisentangledSelfAttention):
 
         if rel_att is not None:
             attention_scores = attention_scores + rel_att
-        
+
         ## APPLY HERE MODIFICATION VITALII TODO
 
-        if attention_enhencer is not None:
-            print(attention_enhencer)
-        
         # bxhxlxd
         if self.talking_head:
             attention_scores = self.head_logits_proj(attention_scores.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
+        # attention_scores = Number of Batches x Num of heads x Max Length x Max Length
+        # attention_enhencer = Number of Batches x Max Length x Max Length
+
+        (B, H, L, L) = attention_scores.size()
+        _attention_enhencer = attention_enhencer[:, None, :, :].expand([B, H, L, L])
+
+        attention_scores = torch.mul(attention_scores, _attention_enhencer)
         attention_probs = XSoftmax.apply(attention_scores, attention_mask, -1)
+
+        # attention_probs = Number of Batches x Num of heads x Max Length x Max Length
         attention_probs = self.dropout(attention_probs)
         if self.talking_head:
             attention_probs = self.head_weights_proj(attention_probs.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
@@ -304,7 +271,6 @@ class DebertaEncoderV2(nn.Module):
                         return module(*inputs, output_attentions)
 
                     return custom_forward
-                 ## DO I NEED TO ADD HERE SOMETHING?
                 hidden_states = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(layer_module),
                     next_kv,
