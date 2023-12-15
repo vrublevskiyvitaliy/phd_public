@@ -15,10 +15,11 @@ def get_spacy_module():
 
 nlp = get_spacy_module()
 
-def get_sentence_tokens(s):
+def get_sentence_tokens(s, display = False):
   doc = nlp(s)
   sentence_tokens = []
-
+  if display:
+    spacy.displacy.render(doc, style="dep", jupyter=True)
   for token in doc:
     data = {
       "token_id": token.i,
@@ -239,6 +240,101 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
       } for token in all_tokens
     ]
 
+class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
+  def __init__(self, tokeniser):
+    super().__init__(tokeniser)
+    self.feature_key = 'att_dep_tree'
+    self.type = TokeniserType.TWO_SENTENCES
+
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+
+    data = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
+    first_padding_0 = data['input_ids'].index(self._tokeniser.pad_token_id)
+    source = torch.full((first_padding_0,first_padding_0), 1.)
+    pad_distance =  max_length - first_padding_0 
+    base_table = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
+    # Here we have table
+    # [1, ...1, 0, ..0]
+    # [...............]
+    # [1, ...1, 0, ..0]
+    # [...............]
+    # [0, ...0, 0, ..0]
+    
+    # First sentence start
+    s1_start_inx = 1
+    sep_inx = data['input_ids'].index(self._tokeniser.sep_token_id)
+    s1_end_inx = sep_inx - 1
+    s2_start_inx = sep_inx + 1
+    s2_end_inx = first_padding_0 - 2
+
+    
+    print(f"First start {s1_start_inx} end {s1_end_inx}")    
+    print(f"Second start {s2_start_inx} end {s2_end_inx}")
+    
+    # for i in range(s1_end_inx - s1_start_inx + 1):
+    #   for j in range(s1_end_inx - s1_start_inx + 1):
+    #     base_table[s1_start_inx + i][s1_start_inx + j] = 2.
+
+    # for i in range(s2_end_inx - s2_start_inx + 1):
+    #   for j in range(s2_end_inx - s2_start_inx + 1):
+    #     base_table[s2_start_inx + i][s2_start_inx + j] = 3.
+
+    s1_tokens = self.get_transformer_sentence_tokens(s1)
+    s2_tokens = self.get_transformer_sentence_tokens(s2)
+    
+    s1_feature = self.get_feature(s1)
+    s2_feature = self.get_feature(s2)
+
+    def boundaries_match(transformer_token_boundary, sentence_feature_boundary):
+      left = max(transformer_token_boundary[0], sentence_feature_boundary[0])
+      right = min(transformer_token_boundary[1], sentence_feature_boundary[1])
+      return left < right
+  
+    def build_token_map(tokens, features):
+      # Feature token id => [list of token ids]
+      m = {}
+      for i in range(len(features)):
+        m[i] = []
+        for j in range(len(tokens)):
+          feature_boundary = features[i]['boundaries']
+          token_boundary = tokens[j]['boundaries']
+          if boundaries_match(token_boundary, feature_boundary):
+            # we need to add pair
+            m[i].append(j)
+      return m
+    
+    val = 1.2
+    
+    def update_base_table(table, tokens, features, max_len, offset):
+      token_map = build_token_map(tokens, features)
+      for i in range(len(features)):
+        feature = features[i]
+        connected_node_id = feature['token_connection_ids']
+        feature_connected = features[connected_node_id]
+        tokens = token_map[i]
+        connected_tokens = token_map[connected_node_id]
+        for _x in tokens:
+          for _y in connected_tokens:
+            if _x < max_len and _y < max_len:
+              table[offset + _x][offset + _y] = val
+              table[offset + _y][offset + _x] = val
+      return table
+    
+    base_table = update_base_table(base_table, s1_tokens, s1_feature, s1_end_inx - s1_start_inx + 1, s1_start_inx)
+    base_table = update_base_table(base_table, s2_tokens, s2_feature, s2_end_inx - s2_start_inx + 1, s2_start_inx)
+
+    return base_table
+
+  def get_feature(self, s):
+    all_tokens = get_sentence_tokens(s)
+    return [
+      {
+        'boundaries':token['token_boundaries'], 
+        'token_connection_ids': token['token_connection_ids'],
+        'token_id': token['token_id']
+      } for token in all_tokens
+    ]
+
 class FinalTokeniser:
   def __init__(self, tokeniser):
     self._tokeniser = tokeniser
@@ -296,11 +392,13 @@ class FinalTokeniser:
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
     attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
     attention_tokeniser_rand = AttentionEnhencerRandEnrichedTokenise(self._tokeniser)
-    
+    attention_tokeniser_dep = AttentionEnhencerDependancyTreeEnrichedTokenise(self._tokeniser)
+
+    AttentionEnhencerDependancyTreeEnrichedTokenise
     return self.apply_tokenisers(
       s1, 
       s2, 
-      [pos_tag_id_tokeniser, attention_tokeniser, attention_tokeniser_rand], 
+      [attention_tokeniser_dep], 
       padding, 
       truncation, 
       max_length
