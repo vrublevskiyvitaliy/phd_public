@@ -205,7 +205,7 @@ class AttentionEnhencerDummyEnrichedTokeniserV1(BaseEnrichedTokeniser):
   
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
     number_of_attention_heads = 12
-    result = result[None, :, :].expand([number_of_attention_heads, L, L])
+    result = result[None, :, :].expand([number_of_attention_heads, max_length, max_length])
     return result
 
   def get_feature(self, s):
