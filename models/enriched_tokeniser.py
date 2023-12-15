@@ -399,7 +399,7 @@ class FinalTokeniser:
     return self.apply_tokenisers(
       s1, 
       s2, 
-      [attention_tokeniser_dep], 
+      [attention_tokeniser_dep, attention_tokeniser], 
       padding, 
       truncation, 
       max_length
