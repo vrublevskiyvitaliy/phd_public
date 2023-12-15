@@ -246,7 +246,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     self.feature_key = 'att_dep_tree'
     self.type = TokeniserType.TWO_SENTENCES
 
-  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length, config):
 
     data = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
     first_padding_0 = data['input_ids'].index(self._tokeniser.pad_token_id)
@@ -302,7 +302,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
             m[i].append(j)
       return m
     
-    val = 1.2
+    val = config['att_dep_tree_value']
     
     def update_base_table(table, tokens, features, max_len, offset):
       token_map = build_token_map(tokens, features)
@@ -335,8 +335,10 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     ]
 
 class FinalTokeniser:
-  def __init__(self, tokeniser):
+  def __init__(self, tokeniser, config):
     self._tokeniser = tokeniser
+    self._config = config
+    
 
   @staticmethod
   def _prepare_for_model(tokeniser, s1, s2, padding, truncation, max_length):
@@ -378,7 +380,7 @@ class FinalTokeniser:
 
         s1_s2_feature = _prepare_for_model(self._tokeniser, s1_feature, s2_feature,  padding, truncation, max_length)
       else:
-        s1_s2_feature = tokeniser.enrich_tokens(s1, s2,  padding, truncation, max_length)
+        s1_s2_feature = tokeniser.enrich_tokens(s1, s2,  padding, truncation, max_length, self._config)
 
       s1_s2_feature = tokeniser.post_processing(s1_s2_feature)
     
@@ -403,9 +405,9 @@ class FinalTokeniser:
       max_length
     )
 
-def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
+def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding, config):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
-  final_tokeniser = FinalTokeniser(tokeniser=tokenizer)
+  final_tokeniser = FinalTokeniser(tokeniser=tokenizer, config=config)
   enriched_data = final_tokeniser.tokenise_everything(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
   assert(basic_tokenizer_data['input_ids'] == enriched_data['input_ids'])
   for feature, value in enriched_data.items():
