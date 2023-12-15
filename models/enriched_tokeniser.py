@@ -267,9 +267,8 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     s2_start_inx = sep_inx + 1
     s2_end_inx = first_padding_0 - 2
 
-    
-    print(f"First start {s1_start_inx} end {s1_end_inx}")    
-    print(f"Second start {s2_start_inx} end {s2_end_inx}")
+    # print(f"First start {s1_start_inx} end {s1_end_inx}")    
+    # print(f"Second start {s2_start_inx} end {s2_end_inx}")
     
     # for i in range(s1_end_inx - s1_start_inx + 1):
     #   for j in range(s1_end_inx - s1_start_inx + 1):
