@@ -2,6 +2,10 @@ import nltk
 import spacy
 # Space module import
 import en_core_web_md
+from enum import Enum
+
+import torch.nn.functional as F
+import torch
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -28,12 +32,16 @@ def get_sentence_tokens(s):
 
     sentence_tokens.append(data)
   return sentence_tokens
-
-
+  
+class TokeniserType(Enum):
+    ONE_SENTENCE = 1
+    TWO_SENTENCES = 2
+    
 class BaseEnrichedTokeniser:
   def __init__(self, tokeniser):
     self._tokeniser = tokeniser
     self.feature_key = None
+    self.type = TokeniserType.ONE_SENTENCE
 
   def combine_transformer_and_sentence_features(self, transformer_tokens, sentence_features):
     for i in range(len(transformer_tokens)):
@@ -173,10 +181,55 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
       self._tokeniser.sep_token_id: self.pos_tag_to_id_map['NA'],
     }
 
+
+class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
+  def __init__(self, tokeniser):
+    super().__init__(tokeniser)
+    self.feature_key = 'attention_enhencer_dummy'
+    self.type = TokeniserType.TWO_SENTENCES
+
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+    s1_t_tokens = self.get_transformer_sentence_tokens(s1)
+    s2_t_tokens = self.get_transformer_sentence_tokens(s2)
+    s1_feature = self.get_feature(s1)
+    s2_feature = self.get_feature(s2)
+
+    # Dummy matrix will have 1 for all non padding elements.
+
+    dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
+
+    first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
+   
+    source = torch.full((first_padding_0,first_padding_0), 1.)
+    pad_distance =  max_length - first_padding_0 
   
+    result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
+  
+    return result
+
+  def get_feature(self, s):
+    all_tokens = get_sentence_tokens(s)
+    return [
+      {
+        'boundaries':token['token_boundaries'], 
+        'token_connection_ids': token['token_connection_ids'],
+        'token_id': token['token_id']
+      } for token in all_tokens
+    ]
+
 class FinalTokeniser:
   def __init__(self, tokeniser):
     self._tokeniser = tokeniser
+
+  @staticmethod
+  def _prepare_for_model(tokeniser, s1, s2, padding, truncation, max_length):
+    return tokeniser.prepare_for_model(
+      s1,
+      s2,
+      padding=padding,
+      truncation=truncation,
+      max_length=max_length,
+    )['input_ids']
 
   def apply_tokenisers(self, s1, s2, tokeniser_list, padding, truncation, max_length):
     # Get base data first: input ids, token_ids, attention_mask
@@ -184,46 +237,44 @@ class FinalTokeniser:
     s1_input_ids = encoded_base['input_ids'][0]
     s2_input_ids = encoded_base['input_ids'][1]
 
-    def _prepare_for_model(tokeniser, s1, s2):
-      return tokeniser.prepare_for_model(
-          s1,
-          s2,
-          padding=padding,
-          truncation=truncation,
-          max_length=max_length,
-      )['input_ids']
+    _prepare_for_model = FinalTokeniser._prepare_for_model
 
-    s1_s2_input_ids = _prepare_for_model(self._tokeniser, s1_input_ids, s2_input_ids)
+    s1_s2_input_ids = _prepare_for_model(self._tokeniser, s1_input_ids, s2_input_ids, padding, truncation, max_length)
 
     data = {
       'input_ids': s1_s2_input_ids,
     }
 
     for tokeniser in tokeniser_list:
-      enriched_data_s1 = tokeniser.enrich_tokens(s1)
-      enriched_data_s2 = tokeniser.enrich_tokens(s2)
+      if tokeniser.type == TokeniserType.ONE_SENTENCE:
+        enriched_data_s1 = tokeniser.enrich_tokens(s1)
+        enriched_data_s2 = tokeniser.enrich_tokens(s2)
 
-      _s1_input_ids = [x['input_id'] for x in enriched_data_s1]
-      _s2_input_ids = [x['input_id'] for x in enriched_data_s2]
+        _s1_input_ids = [x['input_id'] for x in enriched_data_s1]
+        _s2_input_ids = [x['input_id'] for x in enriched_data_s2]
 
-      assert(s1_input_ids == _s1_input_ids)
-      assert(s2_input_ids == _s2_input_ids)
+        assert(s1_input_ids == _s1_input_ids)
+        assert(s2_input_ids == _s2_input_ids)
 
-      s1_feature = [x[tokeniser.feature_key] for x in enriched_data_s1]
-      s2_feature = [x[tokeniser.feature_key] for x in enriched_data_s2]
+        s1_feature = [x[tokeniser.feature_key] for x in enriched_data_s1]
+        s2_feature = [x[tokeniser.feature_key] for x in enriched_data_s2]
 
-      s1_s2_feature = _prepare_for_model(self._tokeniser, s1_feature, s2_feature)
+        s1_s2_feature = _prepare_for_model(self._tokeniser, s1_feature, s2_feature,  padding, truncation, max_length)
+      else:
+        s1_s2_feature = tokeniser.enrich_tokens(s1, s2,  padding, truncation, max_length)
+        pass
 
       s1_s2_feature = tokeniser.post_processing(s1_s2_feature)
     
       data[tokeniser.feature_key] = s1_s2_feature
     
+    
     return data
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
     pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
-    
-    return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser], padding, truncation, max_length)
+    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
+    return self.apply_tokenisers(s1, s2, [pos_tag_id_tokeniser, attention_tokeniser], padding, truncation, max_length)
 
 def preprocess_dataset_final(examples, tokenizer, truncation, max_length, padding):
   basic_tokenizer_data = tokenizer(examples["sentence1"], examples["sentence2"], truncation=truncation, max_length=max_length, padding=padding)
