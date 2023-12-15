@@ -108,12 +108,9 @@ class DisentangledSelfAttentionV2(DisentangledSelfAttention):
             attention_scores = self.head_logits_proj(attention_scores.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         # attention_scores = Number of Batches x Num of heads x Max Length x Max Length
-        # attention_enhencer = Number of Batches x Max Length x Max Length
+        # attention_enhencer = Number of Batches x Num of heads x Max Length x Max Length
 
-        (B, H, L, L) = attention_scores.size()
-        _attention_enhencer = attention_enhencer[:, None, :, :].expand([B, H, L, L])
-
-        attention_scores = torch.mul(attention_scores, _attention_enhencer)
+        attention_scores = torch.mul(attention_scores, attention_enhencer)
         attention_probs = XSoftmax.apply(attention_scores, attention_mask, -1)
 
         # attention_probs = Number of Batches x Num of heads x Max Length x Max Length
