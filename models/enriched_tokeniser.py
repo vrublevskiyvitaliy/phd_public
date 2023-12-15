@@ -189,7 +189,7 @@ class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
     self.feature_key = 'attention_enhencer_dummy'
     self.type = TokeniserType.TWO_SENTENCES
 
-  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length, _config):
     # Dummy matrix will have 1 for all non padding elements.
 
     dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
@@ -218,7 +218,7 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
     self.feature_key = 'attention_enhencer_rand'
     self.type = TokeniserType.TWO_SENTENCES
 
-  def enrich_tokens(self, s1, s2,  padding, truncation, max_length):
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length, _config):
     # Dummy matrix will have 1 for all non padding elements.
 
     dummy = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
