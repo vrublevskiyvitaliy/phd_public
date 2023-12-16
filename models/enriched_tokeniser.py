@@ -259,12 +259,16 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     self.type = TokeniserType.TWO_SENTENCES
 
   def enrich_tokens(self, s1, s2,  padding, truncation, max_length, config):
+    if 'att_dep_tree_pad_value' in config:
+      pad_value = config['att_dep_tree_pad_value']
+    else:
+      pad_value = 0.
 
     data = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
     first_padding_0 = data['input_ids'].index(self._tokeniser.pad_token_id)
     source = torch.full((first_padding_0,first_padding_0), 1.)
     pad_distance =  max_length - first_padding_0 
-    base_table = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
+    base_table = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=pad_value)
     # Here we have table
     # [1, ...1, 0, ..0]
     # [...............]
