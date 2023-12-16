@@ -240,6 +240,18 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
       } for token in all_tokens
     ]
 
+class AttentionEnhencerOneEnrichedTokenise(BaseEnrichedTokeniser):
+  def __init__(self, tokeniser):
+    super().__init__(tokeniser)
+    self.feature_key = 'attention_enhencer_one'
+    self.type = TokeniserType.TWO_SENTENCES
+
+  def enrich_tokens(self, s1, s2,  padding, truncation, max_length, _config):
+    # Dummy matrix will have 1 for all elements.
+    source = torch.full((max_length,max_length), 1.)
+  
+    return source
+
 class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
@@ -390,16 +402,33 @@ class FinalTokeniser:
     return data
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
-    pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
-    attention_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
-    attention_tokeniser_rand = AttentionEnhencerRandEnrichedTokenise(self._tokeniser)
-    attention_tokeniser_dep = AttentionEnhencerDependancyTreeEnrichedTokenise(self._tokeniser)
+    if 'tokeniser_list' in config:
+      tokeniser_list = self._config['tokeniser_list']
+    else:
+      tokeniser_list = ['dep']
+      
+    list_of_tokenisers = []
+    if 'pos' in tokeniser_list:
+      pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
+      list_of_tokenisers.append(pos_tag_id_tokeniser)
+    
+    if 'attention_dummy' in tokeniser_list:
+      attention_dummy_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
+      list_of_tokenisers.append(attention_dummy_tokeniser)
+    
+    if 'attention_dep' in tokeniser_list:
+      attention_tokeniser_dep = AttentionEnhencerDependancyTreeEnrichedTokenise(self._tokeniser)
+      list_of_tokenisers.append(attention_tokeniser_dep)
 
+    if 'attention_one' in tokeniser_list:
+      attention_tokeniser_one = AttentionEnhencerOneEnrichedTokenise(self._tokeniser)
+      list_of_tokenisers.append(attention_tokeniser_one)
+    
     AttentionEnhencerDependancyTreeEnrichedTokenise
     return self.apply_tokenisers(
       s1, 
       s2, 
-      [attention_tokeniser_dep, attention_tokeniser], 
+      list_of_tokenisers, 
       padding, 
       truncation, 
       max_length
