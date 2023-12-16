@@ -402,11 +402,11 @@ class FinalTokeniser:
     return data
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
-    if 'tokeniser_list' in config:
+    if 'tokeniser_list' in self._config:
       tokeniser_list = self._config['tokeniser_list']
     else:
       tokeniser_list = ['dep']
-      
+
     list_of_tokenisers = []
     if 'pos' in tokeniser_list:
       pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
