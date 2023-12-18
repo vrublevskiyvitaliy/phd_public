@@ -33,11 +33,11 @@ def get_sentence_tokens(s, display = False):
 
     sentence_tokens.append(data)
   return sentence_tokens
-  
+
 class TokeniserType(Enum):
     ONE_SENTENCE = 1
     TWO_SENTENCES = 2
-    
+
 class BaseEnrichedTokeniser:
   def __init__(self, tokeniser):
     self._tokeniser = tokeniser
@@ -166,7 +166,7 @@ class PosTagIdEnrichedTokeniser(BaseEnrichedTokeniser):
         return self.pos_tag_to_id_map[pos_tag]
       return self.pos_tag_to_id_map['UNKNOWN']
     return [{'boundaries':token['token_boundaries'], self.feature_key: get_id(token['token_pos_tag'])} for token in all_tokens]
-    
+
   def post_processing(self, s1_s2_feature):
     token_mapping = self.get_special_token_mapping()
     def replace_token_id(token_id, m):
@@ -196,8 +196,8 @@ class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
 
     first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
     source = torch.full((first_padding_0,first_padding_0), 1.)
-    pad_distance =  max_length - first_padding_0 
-  
+    pad_distance =  max_length - first_padding_0
+
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
     return result
 
@@ -205,7 +205,7 @@ class AttentionEnhencerDummyEnrichedTokeniser(BaseEnrichedTokeniser):
     all_tokens = get_sentence_tokens(s)
     return [
       {
-        'boundaries':token['token_boundaries'], 
+        'boundaries':token['token_boundaries'],
         'token_connection_ids': token['token_connection_ids'],
         'token_id': token['token_id']
       } for token in all_tokens
@@ -225,8 +225,8 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
 
     first_padding_0 = dummy['input_ids'].index(self._tokeniser.pad_token_id)
     source = torch.rand((first_padding_0,first_padding_0))
-    pad_distance =  max_length - first_padding_0 
-  
+    pad_distance =  max_length - first_padding_0
+
     result = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=0.)
     return result
 
@@ -234,7 +234,7 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
     all_tokens = get_sentence_tokens(s)
     return [
       {
-        'boundaries':token['token_boundaries'], 
+        'boundaries':token['token_boundaries'],
         'token_connection_ids': token['token_connection_ids'],
         'token_id': token['token_id']
       } for token in all_tokens
@@ -243,19 +243,19 @@ class AttentionEnhencerRandEnrichedTokenise(BaseEnrichedTokeniser):
 class AttentionEnhencerOneEnrichedTokenise(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
-    self.feature_key = 'attention_enhencer_one'
+    self.feature_key = 'attention_enhencer'
     self.type = TokeniserType.TWO_SENTENCES
 
   def enrich_tokens(self, s1, s2,  padding, truncation, max_length, _config):
     # Dummy matrix will have 1 for all elements.
     source = torch.full((max_length,max_length), 1.)
-  
+
     return source
 
 class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
   def __init__(self, tokeniser):
     super().__init__(tokeniser)
-    self.feature_key = 'att_dep_tree'
+    self.feature_key = 'attention_enhencer'
     self.type = TokeniserType.TWO_SENTENCES
 
   def enrich_tokens(self, s1, s2,  padding, truncation, max_length, config):
@@ -267,7 +267,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     data = self._tokeniser(s1, s2, truncation=truncation, max_length=max_length, padding=padding)
     first_padding_0 = data['input_ids'].index(self._tokeniser.pad_token_id)
     source = torch.full((first_padding_0,first_padding_0), 1.)
-    pad_distance =  max_length - first_padding_0 
+    pad_distance =  max_length - first_padding_0
     base_table = F.pad(input=source, pad=(0, pad_distance, 0, pad_distance), mode='constant', value=pad_value)
     # Here we have table
     # [1, ...1, 0, ..0]
@@ -275,7 +275,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     # [1, ...1, 0, ..0]
     # [...............]
     # [0, ...0, 0, ..0]
-    
+
     # First sentence start
     s1_start_inx = 1
     sep_inx = data['input_ids'].index(self._tokeniser.sep_token_id)
@@ -283,9 +283,9 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
     s2_start_inx = sep_inx + 1
     s2_end_inx = first_padding_0 - 2
 
-    # print(f"First start {s1_start_inx} end {s1_end_inx}")    
+    # print(f"First start {s1_start_inx} end {s1_end_inx}")
     # print(f"Second start {s2_start_inx} end {s2_end_inx}")
-    
+
     # for i in range(s1_end_inx - s1_start_inx + 1):
     #   for j in range(s1_end_inx - s1_start_inx + 1):
     #     base_table[s1_start_inx + i][s1_start_inx + j] = 2.
@@ -296,7 +296,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
 
     s1_tokens = self.get_transformer_sentence_tokens(s1)
     s2_tokens = self.get_transformer_sentence_tokens(s2)
-    
+
     s1_feature = self.get_feature(s1)
     s2_feature = self.get_feature(s2)
 
@@ -304,7 +304,7 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
       left = max(transformer_token_boundary[0], sentence_feature_boundary[0])
       right = min(transformer_token_boundary[1], sentence_feature_boundary[1])
       return left < right
-  
+
     def build_token_map(tokens, features):
       # Feature token id => [list of token ids]
       m = {}
@@ -317,9 +317,9 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
             # we need to add pair
             m[i].append(j)
       return m
-    
+
     val = config['att_dep_tree_value']
-    
+
     def update_base_table(table, tokens, features, max_len, offset):
       token_map = build_token_map(tokens, features)
       for i in range(len(features)):
@@ -334,17 +334,17 @@ class AttentionEnhencerDependancyTreeEnrichedTokenise(BaseEnrichedTokeniser):
               table[offset + _x][offset + _y] = val
               table[offset + _y][offset + _x] = val
       return table
-    
+
     base_table = update_base_table(base_table, s1_tokens, s1_feature, s1_end_inx - s1_start_inx + 1, s1_start_inx)
     base_table = update_base_table(base_table, s2_tokens, s2_feature, s2_end_inx - s2_start_inx + 1, s2_start_inx)
-
+    
     return base_table
 
   def get_feature(self, s):
     all_tokens = get_sentence_tokens(s)
     return [
       {
-        'boundaries':token['token_boundaries'], 
+        'boundaries':token['token_boundaries'],
         'token_connection_ids': token['token_connection_ids'],
         'token_id': token['token_id']
       } for token in all_tokens
@@ -354,7 +354,6 @@ class FinalTokeniser:
   def __init__(self, tokeniser, config):
     self._tokeniser = tokeniser
     self._config = config
-    
 
   @staticmethod
   def _prepare_for_model(tokeniser, s1, s2, padding, truncation, max_length):
@@ -399,10 +398,7 @@ class FinalTokeniser:
         s1_s2_feature = tokeniser.enrich_tokens(s1, s2,  padding, truncation, max_length, self._config)
 
       s1_s2_feature = tokeniser.post_processing(s1_s2_feature)
-    
       data[tokeniser.feature_key] = s1_s2_feature
-    
-    
     return data
 
   def tokenise_everything(self, s1, s2, padding, truncation, max_length):
@@ -415,11 +411,9 @@ class FinalTokeniser:
     if 'pos' in tokeniser_list:
       pos_tag_id_tokeniser = PosTagIdEnrichedTokeniser(self._tokeniser)
       list_of_tokenisers.append(pos_tag_id_tokeniser)
-    
     if 'attention_dummy' in tokeniser_list:
       attention_dummy_tokeniser = AttentionEnhencerDummyEnrichedTokeniser(self._tokeniser)
       list_of_tokenisers.append(attention_dummy_tokeniser)
-    
     if 'attention_dep' in tokeniser_list:
       attention_tokeniser_dep = AttentionEnhencerDependancyTreeEnrichedTokenise(self._tokeniser)
       list_of_tokenisers.append(attention_tokeniser_dep)
@@ -430,11 +424,11 @@ class FinalTokeniser:
     
     AttentionEnhencerDependancyTreeEnrichedTokenise
     return self.apply_tokenisers(
-      s1, 
-      s2, 
-      list_of_tokenisers, 
-      padding, 
-      truncation, 
+      s1,
+      s2,
+      list_of_tokenisers,
+      padding,
+      truncation,
       max_length
     )
 
